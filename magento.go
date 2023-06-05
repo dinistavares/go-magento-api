@@ -66,7 +66,9 @@ type Client struct {
   baseURL  *url.URL
   tokenURL *url.URL
 
-  Tokens   *TokensService
+  Tokens      *TokensService
+  Customers   *CustomersService
+  Orders      *OrdersService
 }
 
 type service struct {
@@ -118,6 +120,8 @@ func New(shopURL string) (*Client, error) {
 
   // Map services
   client.Tokens = &TokensService{client: client}
+  client.Customers = &CustomersService{client: client}
+  client.Orders = &OrdersService{client: client}
 
   return client, nil
 }
@@ -129,17 +133,25 @@ func (client *Client) Authenticate(consumerKey, consumerSecret, accessToken, Acc
     ConsumerSecret: consumerSecret,
     AccessToken: accessToken,
     AccessTokenSecret: AccessTokenSecret,
+    HeaderName: defaultHeaderName,
   }
 }
 
 // NewRequest creates an API request
 func (client *Client) NewRequest(method, urlStr string, opts interface{}, body interface{}) (*http.Request, error) {
+  params := make(map[string]string)
   // Append Query Params to URL
   if opts != nil {
     queryParams, err := query.Values(opts)
 
     if err != nil {
       return nil, err
+    }
+
+    for key, value := range queryParams {
+      if len(value) > 0 {
+        params[key] = value[0]
+      }
     }
 
     rawQuery := queryParams.Encode()
@@ -171,10 +183,10 @@ func (client *Client) NewRequest(method, urlStr string, opts interface{}, body i
     return nil, err
   }
 
-  authenticationHeader := client.acquireAuthenticationHeader(method, _url.String(), nil)
+  authenticationHeader := client.acquireAuthenticationHeader(method, _url.String(), params)
 
   req.Header.Add(client.auth.HeaderName, authenticationHeader)
-  req.Header.Add("Accept", "text/html")
+  req.Header.Add("Accept", acceptedContentType)
   req.Header.Add("Content-type", acceptedContentType)
   req.Header.Add("User-Agent", userAgent)
 
