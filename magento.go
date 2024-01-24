@@ -21,6 +21,7 @@ import (
 )
 
 const (
+  defaultStoreViewCode         = "default"
   defaultRestEndpointVersion   = "V1"
   defaultHeaderName            = "Authorization"
   acceptedContentType          = "application/json"
@@ -93,7 +94,7 @@ func (response *errorResponse) Error() string {
     response.Response.StatusCode, response.Message)
 }
 
-func New(shopURL string) (*Client, error) {
+func New(shopURL string, storeCode string) (*Client, error) {
   if shopURL == "" {
     return nil, errors.New("store url is required")
   }
@@ -104,12 +105,16 @@ func New(shopURL string) (*Client, error) {
     HttpClient: http.DefaultClient,
   }
 
+  if storeCode == "" {
+    storeCode = defaultStoreViewCode
+  }
+
   config.HttpClient = http.DefaultClient
   config.RestEndpointURL = shopURL
   config.RestEndpointVersion = defaultRestEndpointVersion
 
   // Create client
-  baseURL, _ := url.Parse(config.RestEndpointURL + "/rest/default/" + defaultRestEndpointVersion)
+  baseURL, _ := url.Parse(config.RestEndpointURL + "/rest/" + storeCode + "/" + defaultRestEndpointVersion)
   tokenURL, err := url.Parse(config.RestEndpointURL + "/oauth/token/")
 
   if err != nil {
