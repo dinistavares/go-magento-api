@@ -28,6 +28,7 @@ const (
 	userAgent                    = "go-magento-api/1.1"
 	clientRequestRetryAttempts   = 2
 	clientRequestRetryHoldMillis = 1000
+	clientTimeout                = 10
 )
 
 var (
@@ -50,6 +51,7 @@ type ClientConfig struct {
 	HttpClient          *http.Client
 	RestEndpointURL     string
 	RestEndpointVersion string
+	StoreCode           string
 }
 
 type auth struct {
@@ -101,20 +103,34 @@ func New(shopURL string, storeCode string) (*Client, error) {
 
 	shopURL = strings.TrimSuffix(shopURL, "/")
 
-	config := ClientConfig{
-		HttpClient: http.DefaultClient,
+	return NewWithConfig(ClientConfig{
+		RestEndpointURL: shopURL,
+		StoreCode:       storeCode,
+	})
+}
+
+func NewWithConfig(config ClientConfig) (*Client, error) {
+	if config.RestEndpointURL == "" {
+		return nil, errors.New("rest endpoint url is required")
 	}
 
-	if storeCode == "" {
-		storeCode = defaultStoreViewCode
+	if config.StoreCode == "" {
+		config.StoreCode = defaultStoreViewCode
 	}
 
-	config.HttpClient = http.DefaultClient
-	config.RestEndpointURL = shopURL
-	config.RestEndpointVersion = defaultRestEndpointVersion
+	if config.HttpClient == nil {
+		// Create client
+		config.HttpClient = &http.Client{
+			Timeout: time.Duration(clientTimeout * time.Second),
+		}
+	}
+
+	if config.RestEndpointVersion == "" {
+		config.RestEndpointVersion = defaultRestEndpointVersion
+	}
 
 	// Create client
-	baseURL, _ := url.Parse(config.RestEndpointURL + "/rest/" + storeCode + "/" + defaultRestEndpointVersion)
+	baseURL, _ := url.Parse(config.RestEndpointURL + "/rest/" + config.StoreCode + "/" + config.RestEndpointVersion)
 	tokenURL, err := url.Parse(config.RestEndpointURL + "/oauth/token/")
 
 	if err != nil {
